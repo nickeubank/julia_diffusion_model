@@ -51,7 +51,7 @@ end
 
 function infect_neighors(simulation, i)
   for n in neighbors(i)
-    if randn < p
+    if randn < simulation.p
       simulation.updating_state[n] = 1
     end
 
