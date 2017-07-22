@@ -1,58 +1,96 @@
 using LightGraphs
-using GraphIO
-
-path = open("/users/nick/desktop/anon_edgelist.edgelist", "r")
-g = loadgraph(path, "g",  EdgeListFormat())
 
 struct Diffusion
-  graph::SimpleGraph
-  primary_state::Vector{Int64}
-  updating_state::Vector{Int64}
-  to_watch::Vector{Int64}
+  graph::Graph
+  reached::Set{Int64}
+  intermediate_reached::Set{Int64}
+  to_watch::Set{Int64}
   p::Float64
+  normalized_p::Bool
 end
 
 
-function diffusion_simulation(g::SimpleGraph,
-                              to_watch::Vector{Int64}),
-                              p::Float64,
-                              num_steps::Int64)
-  simulation = Diffusion(g,
-                         zeros(Int64, nv(g)),
-                         zeros(Int64, nv(g)),
-                         to_watch, p)
+"""
 
-  infected = zeros(Float64, num_steps)
+    diffusion_simulation(g, p, num_steps;
+                         to_watch=Set(vertices(g))
+                         initial_at_risk=Set(vertices(g)),
+                         normalized_p=false
+                         )
+
+### Implementation Notes
+
+Runs diffusion simulation on `g` for `num_steps` with spread
+probabilities based on `p`.
+
+Returns an Array with number of vertices reached at each step of
+simulation.
+
+While simulation is always run on full graph, specifying `to_watch`
+allows for reporting of the number of vertices reached within
+a subpopulation.
+
+If `normalized_p` is `false`, the probability of spread from a vertex i to
+each of the out_neighbors of `i` is `p`.
+
+If `normalized_p` is `true`, the probability of spread from a vertex `i` to
+each of the out_neighbors of `i` is `p / degree(g, i)`.
+
+"""
+
+function diffusion_simulation(g::Graph,
+                              p::Float64,
+                              num_steps::Int64;
+                              to_watch::Set{Int64}=Set(vertices(g)),
+                              initial_at_risk::Set{Int64}=Set(vertices(g)),
+                              normalized_p::Bool=false)
+
+  simulation = Diffusion(g,
+                         Set{Int64}(),
+                         Set{Int64}(),
+                         to_watch,
+                         p,
+                         normalized_p)
+
+  vertices_reached = zeros(Int64, num_steps)
 
   # Initiate
-  initial_infection(simulation)
+  initial_infection(simulation, initial_at_risk)
 
   # Run for num_steps
-  for step in 1:num_steps:
-    for i in filter(x -> x == 1, simulation.primary_state)
+  for step in 1:num_steps
+    for i in simulation.reached
       infect_neighbors(simulation, i)
     end
 
   # flip state vectors
-  simulation.primary_state = copy(simulation.updating_state)
+  union!(simulation.reached, simulation.intermediate_reached)
 
   # Get infection rate
-  infected[step] = mean(simulation.primary_state[simulation.to_watch])
+  vertices_reached[step] = length( intersect(simulation.reached, simulation.to_watch) )
   end
 
-  return infected
+  return vertices_reached
 
 end
 
-function initial_infection(simulation::Diffusion)
-  i = rand(1:nv(g))
-  simulation.primary_state[i] = 1
+function initial_infection(simulation::Diffusion, initial_at_risk)
+  i = rand(initial_at_risk)
+  push!(simulation.reached, i)
 end
 
-function infect_neighors(simulation, i)
-  for n in neighbors(i)
-    if randn < simulation.p
-      simulation.updating_state[n] = 1
+function infect_neighbors(simulation, i)
+
+  if simulation.normalized_p
+    p = simulation.p / degree(simulation.graph, i)
+  else
+    p= simulation.p
+  end
+
+  for n in out_neighbors(simulation.graph, i)
+    if rand(Float16) < p
+      push!(simulation.intermediate_reached, n)
     end
-
   end
+
+end
