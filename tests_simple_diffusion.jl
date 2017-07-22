@@ -1,5 +1,10 @@
 include("simple_diffusion.jl")
 
+
+######
+# Check on fully connected, prob = 1
+######
+
 g = CompleteGraph(5)
 for i in 1:5
   add_vertex!(g)
@@ -25,7 +30,7 @@ result = diffusion_simulation(g,
                               )
 assert( result == [0, 0, 0, 0])
 
-
+# Watch subset
 result = diffusion_simulation(g,
                               1.0,
                               4,
@@ -44,7 +49,10 @@ result = diffusion_simulation(g,
 
 assert( result == [0, 0, 0, 0] )
 
+######
 # Check along path graph
+######
+
 g2 = PathGraph(5)
 result = diffusion_simulation(g2,
                               1.0,
@@ -63,3 +71,14 @@ result = diffusion_simulation(g2,
                               )
 
 assert( result == [3, 5, 5, 5] )
+
+# Check normalize
+result = diffusion_simulation(g,
+                              1.0,
+                              4,
+                              to_watch=Set(1:5),
+                              initial_at_risk=Set(1:5),
+                              normalize_p=true
+                              )
+result
+assert(result != [5, 5, 5, 5])

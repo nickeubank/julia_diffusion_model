@@ -6,7 +6,7 @@ struct Diffusion
   intermediate_reached::Set{Int64}
   to_watch::Set{Int64}
   p::Float64
-  normalized_p::Bool
+  normalize_p::Bool
 end
 
 
@@ -15,7 +15,7 @@ end
     diffusion_simulation(g, p, num_steps;
                          to_watch=Set(vertices(g))
                          initial_at_risk=Set(vertices(g)),
-                         normalized_p=false
+                         normalize_p=false
                          )
 
 ### Implementation Notes
@@ -43,14 +43,14 @@ function diffusion_simulation(g::Graph,
                               num_steps::Int64;
                               to_watch::Set{Int64}=Set(vertices(g)),
                               initial_at_risk::Set{Int64}=Set(vertices(g)),
-                              normalized_p::Bool=false)
+                              normalize_p::Bool=false)
 
   simulation = Diffusion(g,
                          Set{Int64}(),
                          Set{Int64}(),
                          to_watch,
                          p,
-                         normalized_p)
+                         normalize_p)
 
   vertices_reached = zeros(Int64, num_steps)
 
@@ -81,7 +81,7 @@ end
 
 function infect_neighbors(simulation, i)
 
-  if simulation.normalized_p
+  if simulation.normalize_p
     p = simulation.p / degree(simulation.graph, i)
   else
     p= simulation.p
